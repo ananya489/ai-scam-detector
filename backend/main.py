@@ -11,6 +11,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import FileResponse
+
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse("favicon.ico")
+
 app.include_router(analyze_router, prefix="/api")
 
 @app.get("/")

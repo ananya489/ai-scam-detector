@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+from backend.detector import analyze_message   # ✅ fixed
 
 router = APIRouter()
 
@@ -8,11 +9,11 @@ class AnalyzeRequest(BaseModel):
 
 @router.post("/analyze")
 def analyze(request: AnalyzeRequest):
+    if not request.message.strip():
+        return {"error": "Message cannot be empty"}
+
+    result = analyze_message(request.message)   # ✅ fixed
     return {
         "message": request.message,
-        "is_scam": True,
-        "confidence": 0.91,
-        "risk_level": "high",
-        "reason": "This is a dummy response. AI detection coming next.",
-        "flags": ["urgent language", "prize claim", "suspicious link"]
+        **result
     }
