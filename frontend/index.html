@@ -654,28 +654,9 @@
 </div><!-- /shell -->
 
 <script>
-const API = 'http://localhost:8000/api/analyze';
+const API = 'http://127.0.0.1:8000/api/analyze';  // ✅ FIXED
 
-const PRESETS = [
-  { label: '🏦 Bank KYC scam',    text: 'Dear customer, your SBI account KYC has expired. Share your OTP and Aadhaar number immediately or your account will be blocked permanently.' },
-  { label: '🎁 Lottery scam',     text: 'CONGRATULATIONS! You have been selected as our lucky winner. Claim your prize of ₹10,00,000 today only. Click here: bit.ly/claim-prize' },
-  { label: '💼 Fake job offer',   text: 'Work from home opportunity! Earn ₹5000/day. No experience needed. Pay a small registration fee of ₹500 to apply now. Limited slots!' },
-  { label: '🔒 Safe message',     text: 'Hi, your Amazon order #12345 has been shipped and will arrive by Thursday. Track it at amazon.in/orders.' },
-  { label: '⚠️  Tech support',    text: 'ALERT: Your device has been infected with a virus. Call our toll free helpdesk immediately to avoid data loss. Our Microsoft certified engineers will help.' },
-];
-
-// Render preset chips
-const chipsEl = document.getElementById('preset-chips');
-PRESETS.forEach(p => {
-  const el = document.createElement('button');
-  el.className = 'chip';
-  el.textContent = p.label;
-  el.onclick = () => {
-    document.getElementById('msg-input').value = p.text;
-    updateCount();
-  };
-  chipsEl.appendChild(el);
-});
+let isLoading = false;
 
 function updateCount() {
   const v = document.getElementById('msg-input').value;
@@ -690,17 +671,9 @@ function clearAll() {
 }
 
 function setLoading(on) {
+  isLoading = on;
   document.getElementById('loading').style.display = on ? 'block' : 'none';
   document.getElementById('analyze-btn').disabled = on;
-  if (on) animateSteps();
-}
-
-function animateSteps() {
-  const steps = ['step-1','step-2','step-3','step-4'];
-  steps.forEach(id => document.getElementById(id).classList.remove('active'));
-  steps.forEach((id, i) => {
-    setTimeout(() => document.getElementById(id).classList.add('active'), i * 700);
-  });
 }
 
 function riskClass(level) {
@@ -714,32 +687,33 @@ function weightClass(w) {
 }
 
 function renderResults(data) {
+  if (!data) return;
+
   const rc = riskClass(data.risk_level);
 
-  // Banner
   const banner = document.getElementById('risk-banner');
   banner.className = `risk-banner ${rc}`;
-  document.getElementById('score-num').textContent = data.risk_score;
-  document.getElementById('risk-label').textContent = (data.risk_level || 'unknown').toUpperCase() + ' RISK';
 
-  const verdict = data.is_scam
-    ? (data.risk_level === 'high' ? 'High-risk scam detected' : 'Potential scam detected')
-    : 'Looks safe';
-  document.getElementById('risk-verdict').textContent = verdict;
-  document.getElementById('risk-scam-type').textContent = data.scam_type
-    ? `Type: ${data.scam_type.name}`
-    : 'No known scam pattern matched';
+  document.getElementById('score-num').textContent = data.risk_score ?? 0;
+  document.getElementById('risk-label').textContent =
+    (data.risk_level || 'unknown').toUpperCase() + ' RISK';
 
-  // Signals
+  document.getElementById('risk-verdict').textContent =
+    data.is_scam ? '⚠️ Scam detected' : '✅ Looks safe';
+
+  document.getElementById('risk-scam-type').textContent =
+    data.scam_type?.name || 'No known scam pattern';
+
   const sigList = document.getElementById('signal-list');
   sigList.innerHTML = '';
-  if (data.signals && data.signals.length) {
+
+  if (data.signals?.length) {
     data.signals.forEach(s => {
       sigList.innerHTML += `
         <div class="signal-item ${weightClass(s.weight)}">
           <div>
             <div class="signal-label">${s.label}</div>
-            <div class="signal-matches">matched: ${s.matches.join(', ')}</div>
+            <div class="signal-matches">${s.matches.join(', ')}</div>
           </div>
           <span class="signal-weight">+${s.weight}</span>
         </div>`;
@@ -748,53 +722,30 @@ function renderResults(data) {
     sigList.innerHTML = '<div class="empty-signals">No signals detected</div>';
   }
 
-  // Tactics
   const tacticGrid = document.getElementById('tactic-grid');
   tacticGrid.innerHTML = '';
-  if (data.tactics && data.tactics.length) {
+
+  if (data.tactics?.length) {
     data.tactics.forEach(t => {
       tacticGrid.innerHTML += `<span class="tactic-pill">${t.label}</span>`;
     });
   } else {
-    tacticGrid.innerHTML = '<span style="font-family:var(--mono);font-size:11px;color:var(--muted)">None detected</span>';
+    tacticGrid.innerHTML = 'None detected';
   }
 
-  // Score breakdown bars
-  const bd = document.getElementById('breakdown');
-  bd.innerHTML = '';
-  if (data.signals && data.signals.length) {
-    const colors = { 'w-high': 'var(--high)', 'w-med': 'var(--medium)', 'w-low': 'var(--low)' };
-    data.signals.forEach(s => {
-      const wc = weightClass(s.weight);
-      const pct = Math.round((s.weight / 25) * 100);
-      bd.innerHTML += `
-        <div>
-          <div class="breakdown-label"><span>${s.label}</span><span>${s.weight}/25</span></div>
-          <div class="breakdown-bar-wrap">
-            <div class="breakdown-bar-fill" style="width:0%;background:${colors[wc]}" data-target="${pct}"></div>
-          </div>
-        </div>`;
-    });
-    // Animate bars after render
-    setTimeout(() => {
-      bd.querySelectorAll('.breakdown-bar-fill').forEach(el => {
-        el.style.width = el.dataset.target + '%';
-      });
-    }, 100);
-  }
-
-  // AI Analysis
   const ai = data.ai_analysis || {};
-  document.getElementById('ai-summary').textContent = ai.summary || 'No AI summary available.';
+  document.getElementById('ai-summary').textContent =
+    ai.summary || 'No AI summary available';
 
   const adviceList = document.getElementById('advice-list');
   adviceList.innerHTML = '';
-  (ai.advice || []).forEach(tip => {
-    adviceList.innerHTML += `<li>${tip}</li>`;
+
+  (ai.advice || []).forEach(a => {
+    adviceList.innerHTML += `<li>${a}</li>`;
   });
 
-  const reportEl = document.getElementById('report-to');
-  reportEl.innerHTML = ai.report_to
+  const report = document.getElementById('report-to');
+  report.innerHTML = ai.report_to
     ? `<div class="report-to">Report to: ${ai.report_to}</div>`
     : '';
 
@@ -802,11 +753,14 @@ function renderResults(data) {
 }
 
 async function analyze() {
+  if (isLoading) return;
+
   const msg = document.getElementById('msg-input').value.trim();
-  if (!msg) return;
+  if (!msg) return alert("Please enter a message");
 
   document.getElementById('results').style.display = 'none';
   document.getElementById('error-box').style.display = 'none';
+
   setLoading(true);
 
   try {
@@ -816,20 +770,20 @@ async function analyze() {
       body: JSON.stringify({ message: msg })
     });
 
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    if (!res.ok) throw new Error("Backend not responding");
 
     const data = await res.json();
     renderResults(data);
+
   } catch (err) {
     const box = document.getElementById('error-box');
-    box.textContent = `Error: ${err.message}. Make sure the backend is running on localhost:8000.`;
+    box.textContent = `❌ Error: ${err.message} (Check backend at port 8000)`;
     box.style.display = 'block';
-  } finally {
-    setLoading(false);
   }
+
+  setLoading(false);
 }
 
-// Allow Enter+Ctrl to submit
 document.getElementById('msg-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.ctrlKey) analyze();
 });

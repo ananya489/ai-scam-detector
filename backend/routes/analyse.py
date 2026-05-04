@@ -1,19 +1,13 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from backend.detector import analyze_message   # ✅ fixed
+from backend.detector import analyze_message
 
 router = APIRouter()
 
-class AnalyzeRequest(BaseModel):
+class MessageRequest(BaseModel):
     message: str
 
 @router.post("/analyze")
-def analyze(request: AnalyzeRequest):
-    if not request.message.strip():
-        return {"error": "Message cannot be empty"}
-
-    result = analyze_message(request.message)   # ✅ fixed
-    return {
-        "message": request.message,
-        **result
-    }
+def analyze(req: MessageRequest):
+    result = analyze_message(req.message)
+    return result

@@ -1,34 +1,39 @@
 import os
 import json
-from anthropic import Anthropic
-from prompts import build_analysis_prompt
+from openai import OpenAI
+from dotenv import load_dotenv
+from pathlib import Path
+from backend.prompts import build_analysis_prompt
 
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# ✅ Force load .env from root
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
-def get_ai_analysis(
-    message:    str,
-    signals:    list,
-    scam_type:  dict | None,
-    tactics:    list,
-    risk_score: int,
-) -> dict:
-    """
-    Call Claude with the structured findings and get a human-readable analysis.
-    Returns a dict with summary, advice, safe_to_ignore, report_to.
-    Falls back gracefully if the API call fails.
-    """
+# ✅ Get API key
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    raise ValueError("❌ OPENAI_API_KEY not found in .env")
+
+client = OpenAI(api_key=api_key)
+
+
+def get_ai_analysis(message, signals, scam_type, tactics, risk_score):
     prompt = build_analysis_prompt(message, signals, scam_type, tactics, risk_score)
 
     try:
-        response = client.messages.create(
-            model="claude-opus-4-5",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return ONLY JSON."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=512,
-            messages=[{"role": "user", "content": prompt}]
+            temperature=0.3
         )
 
-        raw = response.content[0].text.strip()
+        raw = response.choices[0].message.content.strip()
 
-        # Strip markdown code fences if Claude wraps the JSON
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -36,22 +41,19 @@ def get_ai_analysis(
 
         return json.loads(raw)
 
-    except json.JSONDecodeError:
-        return _fallback(risk_score)
     except Exception as e:
-        print(f"[ai_analyzer] API error: {e}")
+        print("AI ERROR:", e)
         return _fallback(risk_score)
 
 
-def _fallback(risk_score: int) -> dict:
-    """Returned when the Claude call fails — keeps the API response consistent."""
+def _fallback(risk_score):
     return {
-        "summary":        "Automated analysis completed. AI explanation unavailable right now.",
-        "advice":         [
-            "Do not share personal or financial information.",
-            "Do not click any links in the message.",
-            "Contact the sender through an official channel to verify.",
+        "summary": "AI unavailable.",
+        "advice": [
+            "Do not share personal info",
+            "Avoid clicking links",
+            "Verify sender"
         ],
         "safe_to_ignore": risk_score < 20,
-        "report_to":      "" if risk_score < 20 else "Your local cybercrime helpline or bank fraud team",
+        "report_to": "" if risk_score < 20 else "Cybercrime helpline"
     }

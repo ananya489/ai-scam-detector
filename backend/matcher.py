@@ -1,6 +1,5 @@
 import re
-from playbook import SCAM_PLAYBOOK, TACTIC_DEFINITIONS
-
+from backend.playbook import SCAM_PLAYBOOK, TACTIC_DEFINITIONS
 
 def _keyword_hit_count(text: str, keywords: list[str]) -> int:
     """Count how many keywords appear in the text."""

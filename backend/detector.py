@@ -1,5 +1,10 @@
 import re
 
+# ✅ FIXED IMPORTS (IMPORTANT)
+from backend.matcher import match_scam_type, detect_tactics
+from backend.ai_analyzer import get_ai_analysis
+
+
 # --- Signal Definitions ---
 
 URGENCY_PATTERNS = [
@@ -43,19 +48,20 @@ PERSONAL_INFO_PATTERNS = [
     r"\bsocial security\b", r"\bdate of birth\b", r"\bmother.*maiden\b"
 ]
 
-# --- Signal Registry (weights sum to 130) ---
+
+# --- Signal Registry ---
 
 SIGNAL_REGISTRY = [
     {"id": "urgency",         "label": "Urgency / Pressure",       "patterns": URGENCY_PATTERNS,         "weight": 10},
-    {"id": "suspicious_link", "label": "Suspicious Link",           "patterns": SUSPICIOUS_LINK_PATTERNS, "weight": 15},
-    {"id": "prize_claim",     "label": "Prize / Lottery Claim",     "patterns": PRIZE_PATTERNS,           "weight": 15},
-    {"id": "threat",          "label": "Threat / Fear Tactic",      "patterns": THREAT_PATTERNS,          "weight": 20},
-    {"id": "money_request",   "label": "Money / Transfer Request",  "patterns": MONEY_PATTERNS,           "weight": 20},
-    {"id": "otp_request",     "label": "OTP / Code Request",        "patterns": OTP_PATTERNS,             "weight": 25},
-    {"id": "personal_info",   "label": "Personal Info Request",     "patterns": PERSONAL_INFO_PATTERNS,   "weight": 25},
+    {"id": "suspicious_link", "label": "Suspicious Link",          "patterns": SUSPICIOUS_LINK_PATTERNS, "weight": 15},
+    {"id": "prize_claim",     "label": "Prize / Lottery Claim",    "patterns": PRIZE_PATTERNS,           "weight": 15},
+    {"id": "threat",          "label": "Threat / Fear Tactic",     "patterns": THREAT_PATTERNS,          "weight": 20},
+    {"id": "money_request",   "label": "Money / Transfer Request", "patterns": MONEY_PATTERNS,           "weight": 20},
+    {"id": "otp_request",     "label": "OTP / Code Request",       "patterns": OTP_PATTERNS,             "weight": 25},
+    {"id": "personal_info",   "label": "Personal Info Request",    "patterns": PERSONAL_INFO_PATTERNS,   "weight": 25},
 ]
 
-MAX_SCORE = sum(s["weight"] for s in SIGNAL_REGISTRY)   # 130
+MAX_SCORE = sum(s["weight"] for s in SIGNAL_REGISTRY)
 
 
 # --- Thresholds ---
@@ -96,96 +102,19 @@ def detect_signals(text: str) -> list[dict]:
 
 
 def calculate_score(signals: list[dict]) -> int:
-    """
-    Sum matched signal weights, normalize to 0–100.
-    """
     raw = sum(s["weight"] for s in signals)
     return round(min(raw / MAX_SCORE, 1.0) * 100)
 
 
-def analyze_message(text: str) -> dict:
-    signals    = detect_signals(text)
-    score      = calculate_score(signals)
-    risk_level = _get_risk_level(score)
+# ✅ FINAL ANALYZE FUNCTION (clean + working)
 
-    return {
-        "is_scam":             score > 20,
-        "risk_level":          risk_level,
-        "risk_score":          score,          # 0–100
-        "score_breakdown": {
-            "raw_score":       sum(s["weight"] for s in signals),
-            "max_possible":    MAX_SCORE,
-            "normalized":      score,
-        },
-        "signals":             signals,
-        "total_signals_found": len(signals),
-    }
-# Add this import at the top of detector.py
-from matcher import match_scam_type, detect_tactics
-
-# Replace analyze_message() with this version
 def analyze_message(text: str) -> dict:
     signals    = detect_signals(text)
     score      = calculate_score(signals)
     risk_level = _get_risk_level(score)
 
     signal_ids = [s["id"] for s in signals]
-    scam_type  = match_scam_type(text, signal_ids)
-    tactics    = detect_tactics(text)
 
-    return {
-        "is_scam":             score > 20,
-        "risk_level":          risk_level,
-        "risk_score":          score,
-        "score_breakdown": {
-            "raw_score":    sum(s["weight"] for s in signals),
-            "max_possible": MAX_SCORE,
-            "normalized":   score,
-        },
-        "scam_type":           scam_type,
-        "tactics":             tactics,
-        "signals":             signals,
-        "total_signals_found": len(signals),
-    }
-
-# Add this import at the top of detector.py
-from matcher import match_scam_type, detect_tactics
-
-# Replace analyze_message() with this version
-def analyze_message(text: str) -> dict:
-    signals    = detect_signals(text)
-    score      = calculate_score(signals)
-    risk_level = _get_risk_level(score)
-
-    signal_ids = [s["id"] for s in signals]
-    scam_type  = match_scam_type(text, signal_ids)
-    tactics    = detect_tactics(text)
-
-    return {
-        "is_scam":             score > 20,
-        "risk_level":          risk_level,
-        "risk_score":          score,
-        "score_breakdown": {
-            "raw_score":    sum(s["weight"] for s in signals),
-            "max_possible": MAX_SCORE,
-            "normalized":   score,
-        },
-        "scam_type":           scam_type,
-        "tactics":             tactics,
-        "signals":             signals,
-        "total_signals_found": len(signals),
-    }
-
-# Add this import at the top
-from ai_analyzer import get_ai_analysis
-
-# Replace analyze_message() with this final version
-def analyze_message(text: str) -> dict:
-    signals    = detect_signals(text)
-    score      = calculate_score(signals)
-    risk_level = _get_risk_level(score)
-
-    signal_ids = [s["id"] for s in signals]
     scam_type  = match_scam_type(text, signal_ids)
     tactics    = detect_tactics(text)
 
