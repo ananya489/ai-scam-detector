@@ -1,8 +1,6 @@
 # 🚀 AI Scam Detector
 An AI-powered scam detection system that analyzes suspicious messages using **rule-based signals + Large Language Models (LLMs)** to detect fraud patterns and provide actionable advice.
-
 ## 🔥 Features
-
 * 🧠 **AI-powered analysis** using OpenAI
 * 🚨 Detects common scams:
 
